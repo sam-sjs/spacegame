@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Infrastructure for Spacegame'
+Resources:
+  SgCloudformationRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'SgCloudformationRole'
+      Description: 'Spacegame cloudformation.'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: 'Allow'
+          Principal:
+            Service: 'cloudformation.amazonaws.com'
+          Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'SgCloudformationPolicy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              Effect: 'Allow'
+              Action: 'cloudformation:*'
+              Resource: !Ref 'AWS::StackId'
