@@ -13,14 +13,17 @@ Resources:
           Principal:
             Service: 'codepipeline.amazonaws.com'
           Action: 'sts:AssumeRole'
-        Policies:
-          - PolicyName: 'sg-codepipeline-base-policy'
-            PolicyDocument:
-              Version: '2012-10-17'
-              Statement:
-                Effect: 'Allow'
-                Action: 'codepipeline:UpdatePipeline'
-                Resource: '*'
+      Policies:
+        - PolicyName: 'sg-codepipeline-base-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              Effect: 'Allow'
+              Action: 
+                - 's3:PutObject'
+                - 'codebuild:StartBuild'
+                - 'codebuild:BatchGetBuilds'
+              Resource: '*'
 
   SgCodePipelineBucket:
     Type: 'AWS::S3::Bucket'
@@ -28,6 +31,52 @@ Resources:
       BucketName: 'sg-codepipeline-artifactstore'
       VersioningConfiguration:
         Status: 'Enabled'
+
+  SgCodeBuildRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'sg-codebuild'
+      Description: 'Spacegame code build project role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: 'Allow'
+          Principal:
+            Service: 'codebuild.amazonaws.com'
+          Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'sg-codebuild-base-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+              - Effect: 'Allow'
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                Resource: '*'
+
+  SgCodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Name: 'sg-build-project'
+      Artifacts:
+        Type: 'CODEPIPELINE'
+      Description: 'Spacegame main build step'
+      Environment:
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/standard:6.0'
+        PrivilegedMode: true
+        Type: 'LINUX_CONTAINER'
+      ServiceRole: !GetAtt SgCodeBuildRole.Arn
+      Source:
+        Type: 'CODEPIPELINE'
 
   SgCodePipeline:
     Type: 'AWS::CodePipeline::Pipeline'
@@ -46,3 +95,22 @@ Resources:
                 Owner: 'ThirdParty'
                 Provider: 'GitHub'
                 Version: '1'
+              Configuration:
+                Owner: 'sam-sjs'
+                Repo: 'spacegame'
+                Branch: 'main'
+                OAuthToken: '{{resolve:secretsmanager:sg-github-oauth-token:SecretString}}'
+              OutputArtifacts:
+                - Name: 'SourceCode'
+        - Name: 'Build'
+          Actions:
+            - Name: 'Build'
+              ActionTypeId:
+                Category: 'Build'
+                Owner: 'AWS'
+                Provider: 'CodeBuild'
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref 'SgCodeBuildProject'
+              InputArtifacts:
+                - Name: 'SourceCode'
