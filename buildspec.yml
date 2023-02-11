@@ -1,12 +1,13 @@
 version: 0.2
 
 phases:
+  pre-build:
+    commands:
+      - VARIABLES=$(cat project-config)
+      - export $VARIABLES
   build:
     on-failure: ABORT
     commands:
-      - echo 'Building test image...'
       - docker build --tag spacegame-test --target test .
-      - echo '\nRunning tests...'
       - docker run spacegame-test 
-      - echo '\nBuilding release image...'
-      - docker build --tag spacegame-0.1.0:${CODEBUILD_BUILD_ID} --target release .
+      - docker build --tag spacegame-$SG_MAJOR_VERSION.$SG_MINOR_VERSION.$SG_PATCH_VERSION:$(date +%s) --target release .
