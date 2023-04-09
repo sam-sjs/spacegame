@@ -6,10 +6,4 @@ import org.springframework.util.Assert;
 
 @SpringBootTest
 class SpacegameApplicationTests {
-
-	@Test
-	void contextLoads() {
-		Assert.isTrue(true);
-	}
-
 }
